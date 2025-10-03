@@ -114,13 +114,7 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
         // 3. Draw effects (always use lastFace even if detection skipped this frame)
         const currentEffect = selectedEffectRef.current;
         if (lastFace && currentEffect !== 'none') {
-          ctx.save();
-          if (isMirroredRef.current) {
-            ctx.scale(-1, 1);
-            ctx.translate(-640, 0);
-          }
           drawEffect(ctx, lastFace, currentEffect);
-          ctx.restore();
         }
 
         // Calculate FPS
