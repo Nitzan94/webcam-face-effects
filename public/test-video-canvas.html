@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Canvas Test</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #333; }
+        canvas { border: 3px solid red; display: block; }
+    </style>
+</head>
+<body>
+    <h1 style="color: white;">Video + Canvas Test</h1>
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.createElement('video');
+
+        async function init() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            await video.play();
+
+            function draw() {
+                // Draw video
+                ctx.drawImage(video, 0, 0, 640, 480);
+
+                // Draw green square ON TOP
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.fillRect(10, 10, 100, 100);
+
+                // Draw text ON TOP
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 30px Arial';
+                ctx.fillText('VIDEO + EFFECTS!', 120, 60);
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        init();
+    </script>
+</body>
+</html>
