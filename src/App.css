@@ -10,11 +10,14 @@ body {
     sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .app {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 900px;
   padding: 20px;
 }
 
@@ -36,15 +39,10 @@ body {
 }
 
 .app-main {
-  display: grid;
-  gap: 30px;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 768px) {
-  .app-main {
-    grid-template-columns: 2fr 1fr;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
 }
 
 /* Webcam Container */
@@ -53,6 +51,8 @@ body {
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 680px;
 }
 
 .video-wrapper {
@@ -125,42 +125,71 @@ body {
   }
 }
 
+/* Mirror Control */
+.mirror-control {
+  background: white;
+  border-radius: 12px;
+  padding: 15px 25px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 680px;
+}
+
+.mirror-control label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+}
+
+.mirror-control input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
 /* Effects Selector */
 .effects-selector {
   background: white;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 680px;
 }
 
 .effects-selector h2 {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   color: #333;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
+  text-align: center;
 }
 
 .effects-grid {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
 }
 
 .effect-button {
   background: #f8f9fa;
   border: 2px solid transparent;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px 20px;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .effect-button:hover {
   background: #e9ecef;
-  transform: translateX(4px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .effect-button.active {
@@ -168,20 +197,12 @@ body {
   color: white;
   border-color: #667eea;
   transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
 }
 
 .effect-name {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-}
-
-.effect-description {
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
-.effect-button.active .effect-description {
-  opacity: 0.9;
 }
 
 /* Footer */

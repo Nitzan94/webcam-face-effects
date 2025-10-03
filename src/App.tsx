@@ -35,18 +35,15 @@ function App() {
       <main className="app-main">
         <WebcamFaceEffectsSimple selectedEffect={selectedEffect} isMirrored={isMirrored} />
 
-        <div className="effects-selector">
-          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-              <input
-                type="checkbox"
-                checked={isMirrored}
-                onChange={(e) => setIsMirrored(e.target.checked)}
-                style={{ marginRight: '8px', width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              🪞 Mirror Video
-            </label>
-          </div>
+        <div className="mirror-control">
+          <label>
+            <input
+              type="checkbox"
+              checked={isMirrored}
+              onChange={(e) => setIsMirrored(e.target.checked)}
+            />
+            🪞 Mirror Video
+          </label>
         </div>
 
         <div className="effects-selector">
@@ -57,9 +54,9 @@ function App() {
                 key={effect.id}
                 className={`effect-button ${selectedEffect === effect.id ? 'active' : ''}`}
                 onClick={() => handleEffectChange(effect.id)}
+                title={effect.description}
               >
                 <span className="effect-name">{effect.name}</span>
-                <span className="effect-description">{effect.description}</span>
               </button>
             ))}
           </div>
