@@ -45,6 +45,26 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
     let particles: Particle[] = [];
     let lastBlinkTime = 0;
 
+    // Trail history for rainbow effect
+    interface TrailFrame {
+      keypoints: any[];
+      timestamp: number;
+    }
+    let trailHistory: TrailFrame[] = [];
+
+    // Hearts for kiss effect
+    interface Heart {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      size: number;
+      rotation: number;
+    }
+    let hearts: Heart[] = [];
+    let lastKissTime = 0;
+
     async function setup() {
       // Create video element
       video = document.createElement('video');
@@ -96,7 +116,12 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
       async function render() {
         if (!ctx || !canvas || !video) return;
 
-        // 1. Draw video frame (with mirror if needed)
+        const currentEffect = selectedEffectRef.current;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, 640, 480);
+
+        // STEP 1: Draw video frame
         ctx.save();
         if (isMirroredRef.current) {
           ctx.scale(-1, 1);
@@ -106,7 +131,7 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
         }
         ctx.restore();
 
-        // 2. Detect face (throttled, run every 3rd frame)
+        // STEP 2: Detect face (throttled, run every 3rd frame)
         if (frameCount % 3 === 0 && !isDetecting && detectorRef.current) {
           isDetecting = true;
 
@@ -124,8 +149,7 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
           });
         }
 
-        // 3. Draw effects (always use lastFace even if detection skipped this frame)
-        const currentEffect = selectedEffectRef.current;
+        // STEP 3: Draw effects ON TOP of video
         if (lastFace && currentEffect !== 'none') {
           drawEffect(ctx, lastFace, currentEffect);
         }
@@ -517,6 +541,70 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
           ctx.globalAlpha = 1;
           ctx.shadowBlur = 0;
           break;
+
+        case 'lipstick':
+          // Lipstick - Red lipstick on lips with kiss hearts
+          const upperLipOuter = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
+          const upperLipInner = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
+          const lowerLipOuter = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
+          const lowerLipInner = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
+
+          // Combine all lip points
+          const lipPoints = [...upperLipOuter, ...upperLipInner, ...lowerLipOuter, ...lowerLipInner]
+            .map(idx => keypoints[idx])
+            .filter(p => p);
+
+          if (lipPoints.length > 0) {
+            // Draw filled lips with red color
+            ctx.fillStyle = 'rgba(200, 30, 50, 0.6)';
+            ctx.strokeStyle = 'rgba(150, 20, 40, 0.8)';
+            ctx.lineWidth = 2;
+
+            // Draw upper lip
+            ctx.beginPath();
+            upperLipOuter.forEach((idx, i) => {
+              const point = keypoints[idx];
+              if (point) {
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+              }
+            });
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw lower lip
+            ctx.beginPath();
+            lowerLipOuter.forEach((idx, i) => {
+              const point = keypoints[idx];
+              if (point) {
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+              }
+            });
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Add glossy highlight on top lip
+            const lipCenter = keypoints[13];
+            if (lipCenter) {
+              const highlightGradient = ctx.createRadialGradient(
+                lipCenter.x, lipCenter.y - 5, 0,
+                lipCenter.x, lipCenter.y - 5, 20
+              );
+              highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+              highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+              ctx.fillStyle = highlightGradient;
+              ctx.beginPath();
+              ctx.arc(lipCenter.x, lipCenter.y - 5, 20, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+
+          }
+          break;
+
       }
     }
 

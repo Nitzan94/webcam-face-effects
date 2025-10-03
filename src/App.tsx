@@ -15,6 +15,7 @@ function App() {
     { id: 'pixelate', name: '🟦 Pixelate', description: 'Pixelated face effect' },
     { id: 'glowUp', name: '💎 Glow Up 3.0', description: 'Diamond skin with cosmic sparkles on blink' },
     { id: 'glowRed', name: '❤️ Red Glow', description: 'Red glow with fire sparkles on blink' },
+    { id: 'lipstick', name: '💄 Lipstick', description: 'Red lipstick on your lips' },
   ];
 
   const handleEffectChange = (effectId: string) => {
