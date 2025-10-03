@@ -13,6 +13,8 @@ function App() {
     { id: 'sunglasses', name: '🕶️ Sunglasses', description: 'Cool sunglasses overlay' },
     { id: 'faceOutline', name: '✨ Neon Outline', description: 'Glowing face contour' },
     { id: 'pixelate', name: '🟦 Pixelate', description: 'Pixelated face effect' },
+    { id: 'glowUp', name: '💎 Glow Up 3.0', description: 'Diamond skin with cosmic sparkles on blink' },
+    { id: 'glowRed', name: '❤️ Red Glow', description: 'Red glow with fire sparkles on blink' },
   ];
 
   const handleEffectChange = (effectId: string) => {

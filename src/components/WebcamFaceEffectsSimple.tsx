@@ -32,6 +32,19 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
     let animationId: number;
     let video: HTMLVideoElement;
 
+    // Particle system for glowUp effect
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      size: number;
+      color: string;
+    }
+    let particles: Particle[] = [];
+    let lastBlinkTime = 0;
+
     async function setup() {
       // Create video element
       video = document.createElement('video');
@@ -248,6 +261,261 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
           } catch (err) {
             console.error('Pixelate error:', err);
           }
+          break;
+
+        case 'glowUp':
+          // 1. Diamond-like glow on skin - BRIGHT and VISIBLE
+          const xs3 = keypoints.map((p: any) => p.x);
+          const ys3 = keypoints.map((p: any) => p.y);
+          const xMin3 = Math.min(...xs3);
+          const xMax3 = Math.max(...xs3);
+          const yMin3 = Math.min(...ys3);
+          const yMax3 = Math.max(...ys3);
+          const centerX = (xMin3 + xMax3) / 2;
+          const centerY = (yMin3 + yMax3) / 2;
+
+          // Apply SUBTLE glowing overlay with radial gradient
+          const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, (xMax3 - xMin3) / 1.5);
+          gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+          gradient.addColorStop(0.4, 'rgba(255, 223, 186, 0.2)');
+          gradient.addColorStop(0.7, 'rgba(255, 192, 203, 0.15)');
+          gradient.addColorStop(1, 'rgba(255, 192, 203, 0)');
+
+          ctx.fillStyle = gradient;
+          ctx.shadowBlur = 25;
+          ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+          ctx.fillRect(xMin3, yMin3, xMax3 - xMin3, yMax3 - yMin3);
+          ctx.shadowBlur = 0;
+
+          // 2. BRIGHT Sparkle highlights - 3 stars above the head
+          const forehead = keypoints[10];
+
+          if (forehead) {
+            const headTop = yMin3; // Top of the head
+            const headCenterX = centerX;
+            const starSpacing = 40;
+
+            // 3 stars above the head in a horizontal line
+            const sparklePositions = [
+              { x: headCenterX - starSpacing, y: headTop - 30 },  // Left star
+              { x: headCenterX, y: headTop - 50 },                // Center star (higher)
+              { x: headCenterX + starSpacing, y: headTop - 30 }   // Right star
+            ];
+
+            sparklePositions.forEach((pos) => {
+              const sparkleGradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 30);
+              sparkleGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+              sparkleGradient.addColorStop(0.3, 'rgba(255, 223, 186, 0.8)');
+              sparkleGradient.addColorStop(0.6, 'rgba(255, 192, 203, 0.4)');
+              sparkleGradient.addColorStop(1, 'rgba(255, 192, 203, 0)');
+
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = '#ffffff';
+              ctx.fillStyle = sparkleGradient;
+              ctx.beginPath();
+              ctx.arc(pos.x, pos.y, 30, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            });
+          }
+
+          // 3. Eye blink detection and particle burst
+          const leftEyeTop = keypoints[159];
+          const leftEyeBottom = keypoints[145];
+          const rightEyeTop = keypoints[386];
+          const rightEyeBottom = keypoints[374];
+
+          if (leftEyeTop && leftEyeBottom && rightEyeTop && rightEyeBottom) {
+            const leftEyeHeight = Math.abs(leftEyeTop.y - leftEyeBottom.y);
+            const rightEyeHeight = Math.abs(rightEyeTop.y - rightEyeBottom.y);
+            const avgEyeHeight = (leftEyeHeight + rightEyeHeight) / 2;
+
+            // Detect blink (eyes are closed if height is very small)
+            const isBlinking = avgEyeHeight < 5;
+            const now = performance.now();
+
+            if (isBlinking && (now - lastBlinkTime) > 300) {
+              lastBlinkTime = now;
+
+              // Create particle burst around eyes
+              const eyePoints = [keypoints[33], keypoints[263]]; // Left and right eye centers
+              eyePoints.forEach((eye: any) => {
+                if (!eye) return;
+
+                // Create 20 particles per eye
+                for (let i = 0; i < 20; i++) {
+                  const angle = Math.random() * Math.PI * 2;
+                  const speed = 2 + Math.random() * 3;
+                  const colors = ['#ffffff', '#ffd700', '#ffeb3b', '#ffc0cb', '#e0bbff'];
+
+                  particles.push({
+                    x: eye.x,
+                    y: eye.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1.0,
+                    size: 2 + Math.random() * 3,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                  });
+                }
+              });
+            }
+          }
+
+          // 4. Update and draw particles
+          particles = particles.filter(p => p.life > 0);
+          particles.forEach((p) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1; // Gravity
+            p.life -= 0.02;
+
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color;
+
+            // Draw star shape
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+              const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+              const radius = i % 2 === 0 ? p.size : p.size / 2;
+              const px = p.x + Math.cos(angle) * radius;
+              const py = p.y + Math.sin(angle) * radius;
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+          });
+
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
+          break;
+
+        case 'glowRed':
+          // 1. RED glowing overlay with radial gradient
+          const xs4 = keypoints.map((p: any) => p.x);
+          const ys4 = keypoints.map((p: any) => p.y);
+          const xMin4 = Math.min(...xs4);
+          const xMax4 = Math.max(...xs4);
+          const yMin4 = Math.min(...ys4);
+          const yMax4 = Math.max(...ys4);
+          const centerX4 = (xMin4 + xMax4) / 2;
+          const centerY4 = (yMin4 + yMax4) / 2;
+
+          // Apply RED glowing overlay
+          const gradientRed = ctx.createRadialGradient(centerX4, centerY4, 0, centerX4, centerY4, (xMax4 - xMin4) / 1.5);
+          gradientRed.addColorStop(0, 'rgba(255, 100, 100, 0.25)');
+          gradientRed.addColorStop(0.4, 'rgba(255, 60, 60, 0.2)');
+          gradientRed.addColorStop(0.7, 'rgba(255, 0, 0, 0.15)');
+          gradientRed.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+          ctx.fillStyle = gradientRed;
+          ctx.shadowBlur = 25;
+          ctx.shadowColor = 'rgba(255, 0, 0, 0.5)';
+          ctx.fillRect(xMin4, yMin4, xMax4 - xMin4, yMax4 - yMin4);
+          ctx.shadowBlur = 0;
+
+          // 2. RED/ORANGE stars above the head
+          const foreheadRed = keypoints[10];
+
+          if (foreheadRed) {
+            const headTopRed = yMin4;
+            const headCenterXRed = centerX4;
+            const starSpacingRed = 40;
+
+            const sparklePositionsRed = [
+              { x: headCenterXRed - starSpacingRed, y: headTopRed - 30 },
+              { x: headCenterXRed, y: headTopRed - 50 },
+              { x: headCenterXRed + starSpacingRed, y: headTopRed - 30 }
+            ];
+
+            sparklePositionsRed.forEach((pos) => {
+              const sparkleGradientRed = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 30);
+              sparkleGradientRed.addColorStop(0, 'rgba(255, 100, 0, 1)');
+              sparkleGradientRed.addColorStop(0.3, 'rgba(255, 50, 0, 0.8)');
+              sparkleGradientRed.addColorStop(0.6, 'rgba(255, 0, 0, 0.4)');
+              sparkleGradientRed.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = '#ff3300';
+              ctx.fillStyle = sparkleGradientRed;
+              ctx.beginPath();
+              ctx.arc(pos.x, pos.y, 30, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            });
+          }
+
+          // 3. Eye blink detection for RED fire particles
+          const leftEyeTopRed = keypoints[159];
+          const leftEyeBottomRed = keypoints[145];
+          const rightEyeTopRed = keypoints[386];
+          const rightEyeBottomRed = keypoints[374];
+
+          if (leftEyeTopRed && leftEyeBottomRed && rightEyeTopRed && rightEyeBottomRed) {
+            const leftEyeHeightRed = Math.abs(leftEyeTopRed.y - leftEyeBottomRed.y);
+            const rightEyeHeightRed = Math.abs(rightEyeTopRed.y - rightEyeBottomRed.y);
+            const avgEyeHeightRed = (leftEyeHeightRed + rightEyeHeightRed) / 2;
+
+            const isBlinkingRed = avgEyeHeightRed < 5;
+            const nowRed = performance.now();
+
+            if (isBlinkingRed && (nowRed - lastBlinkTime) > 300) {
+              lastBlinkTime = nowRed;
+
+              const eyePointsRed = [keypoints[33], keypoints[263]];
+              eyePointsRed.forEach((eye: any) => {
+                if (!eye) return;
+
+                for (let i = 0; i < 20; i++) {
+                  const angle = Math.random() * Math.PI * 2;
+                  const speed = 2 + Math.random() * 3;
+                  const colorsRed = ['#ff0000', '#ff3300', '#ff6600', '#ff9900', '#ffcc00'];
+
+                  particles.push({
+                    x: eye.x,
+                    y: eye.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1.0,
+                    size: 2 + Math.random() * 3,
+                    color: colorsRed[Math.floor(Math.random() * colorsRed.length)]
+                  });
+                }
+              });
+            }
+          }
+
+          // 4. Update and draw RED particles
+          particles = particles.filter(p => p.life > 0);
+          particles.forEach((p) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1;
+            p.life -= 0.02;
+
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color;
+
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+              const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+              const radius = i % 2 === 0 ? p.size : p.size / 2;
+              const px = p.x + Math.cos(angle) * radius;
+              const py = p.y + Math.sin(angle) * radius;
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+          });
+
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
           break;
       }
     }
