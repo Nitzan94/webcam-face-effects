@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
+import * as handPoseDetection from '@tensorflow-models/hand-pose-detection';
 
 interface WebcamFaceEffectsProps {
   selectedEffect: string;
@@ -12,12 +13,17 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const detectorRef = useRef<faceLandmarksDetection.FaceLandmarksDetector | null>(null);
+  const handDetectorRef = useRef<handPoseDetection.HandDetector | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
   const selectedEffectRef = useRef(selectedEffect);
   const isMirroredRef = useRef(isMirrored);
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [fps, setFps] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [rightHandRaised, setRightHandRaised] = useState(false);
 
   // Update refs when props change
   useEffect(() => {
@@ -46,6 +52,61 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
     let particles: Particle[] = [];
     let lastBlinkTime = 0;
 
+    function startRecording() {
+      const canvas = canvasRef.current;
+      if (!canvas || !videoRef.current) return;
+
+      const stream = videoRef.current.srcObject as MediaStream;
+      if (!stream) return;
+
+      // Capture both canvas (video with effects) and audio
+      const canvasStream = canvas.captureStream(30); // 30 FPS
+      const audioTrack = stream.getAudioTracks()[0];
+
+      // Combine canvas video + audio
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        audioTrack
+      ]);
+
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType: 'video/webm;codecs=vp9'
+      });
+
+      recordedChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+
+        // Auto-download the recording
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `webcam-recording-${Date.now()}.webm`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+      console.log('✅ Recording started');
+    }
+
+    function stopRecording() {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+        console.log('⏹️ Recording stopped');
+      }
+    }
 
     async function setup() {
       // Create video element
@@ -54,11 +115,13 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
       video.height = 480;
       videoRef.current = video;
 
-      // Get webcam stream
+      // Get webcam stream with audio for recording
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 }
+        video: { width: 640, height: 480 },
+        audio: true
       });
       video.srcObject = stream;
+      video.muted = true; // CRITICAL: Mute to prevent audio feedback loop
       video.play();
 
       // Load TensorFlow model
@@ -72,6 +135,16 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
         refineLandmarks: false,
       });
       detectorRef.current = detector;
+
+      // Load hand detection model
+      const handModel = handPoseDetection.SupportedModels.MediaPipeHands;
+      const handDetector = await handPoseDetection.createDetector(handModel, {
+        runtime: 'tfjs',
+        maxHands: 2,
+        modelType: 'full'
+      });
+      handDetectorRef.current = handDetector;
+
       setIsModelLoaded(true);
 
       console.log('Setup complete!');
@@ -84,6 +157,9 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
     let frameCount = 0;
     let lastTime = performance.now();
     let isDetecting = false;
+    let isDetectingHand = false;
+    let lastRightHandRaised = false;
+    let lastLeftHandRaised = false;
 
     function startRenderLoop() {
       const canvas = canvasRef.current;
@@ -129,6 +205,64 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
           }).catch((err: any) => {
             console.error('Detection error:', err);
             isDetecting = false;
+          });
+        }
+
+        // STEP 2.5: Detect hand gestures (throttled, run every 5th frame)
+        if (frameCount % 5 === 0 && !isDetectingHand && handDetectorRef.current) {
+          isDetectingHand = true;
+
+          handDetectorRef.current.estimateHands(canvas).then((hands: any) => {
+            let rightHandRaised = false;
+            let leftHandRaised = false;
+
+            if (hands.length > 0) {
+              for (const hand of hands) {
+                // Check if hand is raised (fingers above wrist)
+                const wrist = hand.keypoints[0];
+                const middleFinger = hand.keypoints[12];
+                const indexFinger = hand.keypoints[8];
+                const pinky = hand.keypoints[20];
+
+                const middleDiff = wrist.y - middleFinger.y;
+                const indexDiff = wrist.y - indexFinger.y;
+                const pinkyDiff = wrist.y - pinky.y;
+
+                const isHandRaised = middleDiff > 100 && indexDiff > 80 && pinkyDiff > 80;
+
+                if (hand.handedness === 'Right' && isHandRaised) {
+                  rightHandRaised = true;
+                } else if (hand.handedness === 'Left' && isHandRaised) {
+                  leftHandRaised = true;
+                }
+              }
+            }
+
+            setRightHandRaised(rightHandRaised);
+
+            // RIGHT HAND: Start recording (rising edge)
+            if (rightHandRaised && !lastRightHandRaised) {
+              console.log('🎬 RIGHT HAND RAISED - Starting recording');
+              if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
+                startRecording();
+              }
+            }
+
+            // LEFT HAND: Stop recording (rising edge)
+            if (leftHandRaised && !lastLeftHandRaised) {
+              console.log('⏹️ LEFT HAND RAISED - Stopping recording');
+              if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                stopRecording();
+              }
+            }
+
+            lastRightHandRaised = rightHandRaised;
+            lastLeftHandRaised = leftHandRaised;
+
+            isDetectingHand = false;
+          }).catch((err: any) => {
+            console.error('Hand detection error:', err);
+            isDetectingHand = false;
           });
         }
 
@@ -632,8 +766,18 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, on
         <div className={`status-indicator ${faceDetected ? 'detected' : 'not-detected'}`}>
           {faceDetected ? '👤 Face Detected' : '❌ No Face'}
         </div>
+        <div className={`status-indicator ${rightHandRaised ? 'hand-raised' : ''}`}>
+          {rightHandRaised ? '✋ Right Hand Up' : '👋 No Hand'}
+        </div>
         <div className="fps-counter">FPS: {fps}</div>
       </div>
+
+      {isRecording && (
+        <div className="recording-indicator">
+          <div className="recording-pulse"></div>
+          <span>🔴 RECORDING</span>
+        </div>
+      )}
 
       {onPhotoCapture && (
         <div className="capture-controls">
