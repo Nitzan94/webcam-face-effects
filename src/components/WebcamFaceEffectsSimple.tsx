@@ -45,25 +45,6 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
     let particles: Particle[] = [];
     let lastBlinkTime = 0;
 
-    // Trail history for rainbow effect
-    interface TrailFrame {
-      keypoints: any[];
-      timestamp: number;
-    }
-    let trailHistory: TrailFrame[] = [];
-
-    // Hearts for kiss effect
-    interface Heart {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      life: number;
-      size: number;
-      rotation: number;
-    }
-    let hearts: Heart[] = [];
-    let lastKissTime = 0;
 
     async function setup() {
       // Create video element
@@ -87,6 +68,7 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
       const detector = await faceLandmarksDetection.createDetector(model, {
         runtime: 'tfjs',
         maxFaces: 1,
+        refineLandmarks: false,
       });
       detectorRef.current = detector;
       setIsModelLoaded(true);
@@ -543,11 +525,11 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
           break;
 
         case 'lipstick':
-          // Lipstick - Red lipstick on lips with kiss hearts
+          // Lipstick - Red lipstick on lips
           const upperLipOuter = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
-          const upperLipInner = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
-          const lowerLipOuter = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
-          const lowerLipInner = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
+          const upperLipInner = [191, 80, 81, 82, 13, 312, 311, 310, 415];
+          const lowerLipOuter = [146, 91, 181, 84, 17, 314, 405, 321, 375];
+          const lowerLipInner = [95, 88, 178, 87, 14, 317, 402, 318, 324];
 
           // Combine all lip points
           const lipPoints = [...upperLipOuter, ...upperLipInner, ...lowerLipOuter, ...lowerLipInner]
@@ -628,8 +610,7 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
             width: '640px',
             height: '480px',
             display: 'block',
-            maxWidth: '100%',
-            height: 'auto'
+            maxWidth: '100%'
           }}
         />
       </div>
