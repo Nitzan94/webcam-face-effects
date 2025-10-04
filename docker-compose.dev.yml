@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  webcam-face-effects-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: webcam-face-effects-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # Volume mapping for hot reload
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.app.json:/app/tsconfig.app.json
+      - ./package.json:/app/package.json
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_HOST=0.0.0.0
+    restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0

@@ -58,11 +58,31 @@
 - **Clear particles** when life <= 0
 
 ## Development Commands
+
+### Local Development
 ```bash
-npm run dev      # Vite dev server
+npm run dev      # Vite dev server (http://localhost:5173)
 npm run build    # TypeScript + Vite build
 npm run lint     # ESLint check
 npm run preview  # Preview production build
+```
+
+### Docker Development (with hot reload)
+```bash
+# Development mode with volume mapping
+docker-compose -f docker-compose.dev.yml up --build
+
+# Access: http://localhost:5173
+# Changes in src/ will auto-reload
+```
+
+### Docker Production
+```bash
+# Production build with nginx
+docker-compose up --build -d
+
+# Access: http://localhost:3000
+# Optimized static files served by nginx
 ```
 
 ## Adding New Effects
