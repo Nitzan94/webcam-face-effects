@@ -5,9 +5,10 @@ import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detec
 interface WebcamFaceEffectsProps {
   selectedEffect: string;
   isMirrored: boolean;
+  onPhotoCapture?: (photoDataUrl: string) => void;
 }
 
-export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: WebcamFaceEffectsProps) {
+export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored, onPhotoCapture }: WebcamFaceEffectsProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const detectorRef = useRef<faceLandmarksDetection.FaceLandmarksDetector | null>(null);
@@ -601,6 +602,15 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
     };
   }, []); // Run only once!
 
+  const handleCapturePhoto = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !onPhotoCapture) return;
+
+    // Capture canvas as image (with current effect applied)
+    const photoDataUrl = canvas.toDataURL('image/png');
+    onPhotoCapture(photoDataUrl);
+  };
+
   return (
     <div className="webcam-container">
       <div className="video-wrapper">
@@ -624,6 +634,18 @@ export default function WebcamFaceEffectsSimple({ selectedEffect, isMirrored }: 
         </div>
         <div className="fps-counter">FPS: {fps}</div>
       </div>
+
+      {onPhotoCapture && (
+        <div className="capture-controls">
+          <button
+            className="capture-button"
+            onClick={handleCapturePhoto}
+            disabled={!isModelLoaded}
+          >
+            📸 Capture Photo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

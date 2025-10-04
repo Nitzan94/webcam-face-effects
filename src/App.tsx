@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import WebcamFaceEffectsSimple from './components/WebcamFaceEffectsSimple';
+import PhotoGallery from './components/PhotoGallery';
 import './App.css';
 
 function App() {
   const [selectedEffect, setSelectedEffect] = useState('none');
   const [isMirrored, setIsMirrored] = useState(true);
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const effects = [
     { id: 'none', name: '⭕ None', description: 'No effect (default)' },
@@ -28,6 +30,20 @@ function App() {
     }
   };
 
+  const handlePhotoCapture = (photoDataUrl: string) => {
+    setPhotos(prev => [photoDataUrl, ...prev]);
+  };
+
+  const handleDeletePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleClearAllPhotos = () => {
+    if (window.confirm('Delete all photos?')) {
+      setPhotos([]);
+    }
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -36,7 +52,11 @@ function App() {
       </header>
 
       <main className="app-main">
-        <WebcamFaceEffectsSimple selectedEffect={selectedEffect} isMirrored={isMirrored} />
+        <WebcamFaceEffectsSimple
+          selectedEffect={selectedEffect}
+          isMirrored={isMirrored}
+          onPhotoCapture={handlePhotoCapture}
+        />
 
         <div className="mirror-control">
           <label>
@@ -64,6 +84,12 @@ function App() {
             ))}
           </div>
         </div>
+
+        <PhotoGallery
+          photos={photos}
+          onDeletePhoto={handleDeletePhoto}
+          onClearAll={handleClearAllPhotos}
+        />
       </main>
 
       <footer className="app-footer">
